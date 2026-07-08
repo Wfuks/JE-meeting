@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meetup Organizer - Neocities Edition</title>
+  
+  <!-- Font Setup -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+            display: ['Space Grotesk', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .scrollbar-none::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-[#050505] text-slate-100 font-sans h-full flex flex-col justify-between overflow-x-hidden selection:bg-indigo-600/30 selection:text-indigo-200 relative">
+
+  <!-- Background radial accent -->
+  <div class="absolute top-0 right-0 w-[500px] h-[500px] pointer-events-none opacity-10 bg-[#4f46e5]/20 blur-[120px] rounded-full z-0"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="fixed inset-0 bg-[#050505] z-50 flex flex-col items-center justify-center transition-opacity duration-300">
+    <div class="flex flex-col items-center gap-4">
+      <div class="animate-spin rounded-full h-10 w-10 border-2 border-indigo-500 border-t-transparent"></div>
+      <p class="text-xs font-bold tracking-widest text-slate-500 uppercase">Synchronisation avec JSONBin...</p>
+    </div>
+  </div>
+
+  <!-- Header Nav -->
+  <nav class="h-16 px-6 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-md relative z-20 shrink-0">
+    <div class="flex items-center gap-4">
+      <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
+        M
+      </div>
+      <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+        <input 
+          id="board-title" 
+          type="text" 
+          value="Chargement..." 
+          class="text-sm font-semibold tracking-tight text-white bg-transparent border-b border-transparent hover:border-white/10 focus:border-indigo-500 focus:outline-none transition-all py-0.5"
+          placeholder="Nom du Meetup"
+        />
+        <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 self-start sm:self-auto">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+          JSONBin Persisté
+        </span>
+      </div>
+    </div>
+
+    <!-- Status & S'ajouter Button -->
+    <div class="flex items-center gap-4">
+      <!-- Autosave Status Indicator -->
+      <div class="flex text-[10px] font-mono uppercase tracking-wider text-slate-500 items-center gap-1.5">
+        <span id="save-indicator-icon">
+          <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>
+        </span>
+        <span id="save-indicator-text">Enregistré</span>
+      </div>
+
+      <button 
+        onclick="appendRow()" 
+        class="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all shadow-lg shadow-indigo-600/20 cursor-pointer"
+      >
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+        S'ajouter
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Grid & Sidebar Layout -->
+  <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10">
+    
+    <!-- Left Panel: Grid Table -->
+    <div class="flex-1 p-6 overflow-y-auto space-y-6">
+      
+      <!-- Internal description -->
+      <div class="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Description de la rencontre</h3>
+        <textarea 
+          id="board-description" 
+          class="text-xs text-slate-300 bg-transparent border-b border-transparent hover:border-white/10 focus:border-indigo-500 focus:outline-none transition-all py-1 w-full resize-none h-12 scrollbar-none"
+          placeholder="Décrivez les détails de la rencontre..."
+        ></textarea>
+      </div>
+
+      <!-- Main Board Table -->
+      <div class="bg-slate-900/40 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-white/10 bg-black/40 text-[10px] font-bold text-slate-400 uppercase tracking-widest select-none">
+                <th class="py-4 px-5 font-bold">Nom du Participant</th>
+                <th class="py-4 px-5 font-bold">Statut de Présence</th>
+                <th class="py-4 px-5 font-bold text-center">Disponibilités Horaires</th>
+                <th class="py-4 px-5 font-bold">Commentaires</th>
+                <th class="py-4 px-5 font-bold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="grid-rows" class="divide-y divide-white/5">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Empty state -->
+        <div id="empty-state" class="hidden p-12 text-center flex flex-col items-center justify-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-500">
+            <i data-lucide="calendar" class="w-6 h-6"></i>
+          </div>
+          <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Aucun participant enregistré</p>
+          <button onclick="appendRow()" class="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-indigo-600/20">
+            S'ajouter en premier
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Sidebar with Overlap Analysis -->
+    <div class="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-white/10 bg-[#080808]/80 backdrop-blur-md p-6 overflow-y-auto space-y-6 shrink-0 relative flex flex-col justify-between">
+      <div class="space-y-6">
+        <div class="flex items-center gap-2 border-b border-white/5 pb-4">
+          <div class="w-7 h-7 bg-indigo-600/10 border border-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400">
+            <i data-lucide="sparkles" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-slate-100 uppercase tracking-widest">Analyse des chevauchements</h3>
+            <p class="text-[10px] text-slate-500 mt-0.5">Calcul des créneaux communs en temps réel</p>
+          </div>
+        </div>
+
+        <!-- Overlap Container -->
+        <div class="space-y-4">
+          <!-- Overlaps Confirmed / maybe -->
+          <div class="space-y-3">
+            <h4 class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              Créneaux Confirmés & Dispo communs
+            </h4>
+            <div id="confirmed-overlaps" class="space-y-2 max-h-[220px] overflow-y-auto pr-1 text-xs">
+              <!-- Dynamically computed coincidences -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-6 border-t border-white/5 mt-6 space-y-2">
+        <div class="flex justify-between items-center text-[10px] text-slate-500 tracking-wider uppercase font-mono">
+          <span>Bin ID:</span>
+          <span class="text-slate-300 select-all">6a4d988ef5f4af5e296f23f1</span>
+        </div>
+        <p class="text-[10px] text-slate-600 italic">
+          Sauvegarde instantanée sur Neocities grâce au Cloud JSONBin.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popover / Modal Cell Editor for Availability -->
+  <div id="editor-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-[420px] bg-[#0c0c0c] border border-white/10 rounded-2xl shadow-2xl p-5 relative space-y-4">
+      
+      <!-- Close button -->
+      <button onclick="closeEditor()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-100 hover:bg-white/5 p-2 rounded-xl transition-all cursor-pointer">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      <!-- Popover Header -->
+      <div class="flex items-center gap-2.5 border-b border-white/5 pb-3">
+        <div class="w-8 h-8 rounded-lg bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <i data-lucide="calendar" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold text-slate-200" id="editor-user-title">Disponibilités</h4>
+          <p class="text-[10px] text-slate-500 font-medium">Configurez les créneaux par jour</p>
+        </div>
+      </div>
+
+      <!-- Days Tab Selectors -->
+      <div class="grid grid-cols-3 gap-1 bg-black/50 p-1 rounded-xl border border-white/5">
+        <button onclick="setActiveDay('vendredi')" id="tab-vendredi" class="text-xs font-semibold py-2 rounded-lg transition-all cursor-pointer text-center bg-white/5 text-white">
+          Vendredi
+        </button>
+        <button onclick="setActiveDay('samedi')" id="tab-samedi" class="text-xs font-semibold py-2 rounded-lg transition-all cursor-pointer text-center text-slate-400 hover:text-slate-200">
+          Samedi
+        </button>
+        <button onclick="setActiveDay('dimanche')" id="tab-dimanche" class="text-xs font-semibold py-2 rounded-lg transition-all cursor-pointer text-center text-slate-400 hover:text-slate-200">
+          Dimanche
+        </button>
+      </div>
+
+      <!-- Copy Previous Day Button -->
+      <div id="copy-previous-container" class="hidden">
+        <button 
+          onclick="copyPreviousDay()" 
+          class="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 hover:text-indigo-300 text-[10px] font-bold rounded-lg border border-indigo-500/20 hover:border-indigo-500/30 transition-all cursor-pointer"
+        >
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span id="copy-previous-text">Copier le jour précédent</span>
+        </button>
+      </div>
+
+      <!-- Hours Checklist -->
+      <div class="space-y-2.5 max-h-[250px] overflow-y-auto pr-1 scrollbar-none" id="editor-hours-list">
+        <!-- Dynamically generated list of hours -->
+      </div>
+
+      <!-- Action Button Close -->
+      <div class="pt-2">
+        <button onclick="closeEditor()" class="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/5 text-xs font-bold text-slate-300 rounded-xl transition-all cursor-pointer text-center">
+          Enregistrer & Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="h-10 px-6 bg-[#080808] border-t border-white/5 flex items-center justify-between text-[9px] text-slate-500 uppercase tracking-widest shrink-0 select-none z-20">
+    <div class="flex gap-6">
+      <span>Index: <span class="text-indigo-400">Neocities Edition</span></span>
+      <span>Stockage: <span class="text-emerald-400 font-mono">JSONBin Cloud</span></span>
+    </div>
+    <div>
+      Dashboard &copy; 2026.
+    </div>
+  </footer>
+
+  <!-- Application Logic Code -->
+  <script>
+    // State variables
+    let board = null;
+    const binId = "6a4d988ef5f4af5e296f23f1";
+    const apiKey = "$2a$10$XGpXnzYcu6cBYVnJJwNHneyGfQEr6/iLvUKjqJ6K/9B0vt4cVL1e6";
+    
+    let activeRowId = null;
+    let activeDay = "vendredi"; // vendredi, samedi, dimanche
+    
+    const DAYS_CONFIG = [
+      { id: 'vendredi', label: 'Vendredi 10' },
+      { id: 'samedi', label: 'Samedi 11' },
+      { id: 'dimanche', label: 'Dimanche 12' }
+    ];
+
+    const DEFAULT_HOURS = [
+      "08h00", "09h00", "10h00", "11h00", "12h00", "13h00", 
+      "14h00", "15h00", "16h00", "17h00", "18h00", "19h00", "20h00"
+    ];
+
+    // Helper to extract compounds
+    function parseCompoundStatus(rawStatus) {
+      if (!rawStatus) return { main: "", rdv: "" };
+      if (rawStatus.includes('|')) {
+        const [main, rdv] = rawStatus.split('|');
+        return { main: main || "", rdv: rdv || "" };
+      }
+      if (rawStatus === 'rdv_chatelet') return { main: "", rdv: "rdv_chatelet" };
+      if (rawStatus === 'rdv_parc_expo') return { main: "", rdv: "rdv_parc_expo" };
+      if (['maybe', 'yes', 'Confirmed'].includes(rawStatus)) {
+        return { main: rawStatus, rdv: "" };
+      }
+      return { main: "", rdv: "" };
+    }
+
+    // Initialize application and fetch data
+    async function init() {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+          headers: {
+            'X-Master-Key': apiKey
+          }
+        });
+        if (res.ok) {
+          const payload = await res.json();
+          board = payload.record;
+          
+          document.getElementById("board-title").value = board.name || "Meetup Organizer";
+          document.getElementById("board-description").value = board.description || "";
+          
+          renderGrid();
+          computeOverlaps();
+        } else {
+          console.error("Impossible de charger les données du bin.");
+          alert("Erreur de chargement. Veuillez vérifier votre ID de bin.");
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        document.getElementById("loading-overlay").classList.add("opacity-0");
+        setTimeout(() => {
+          document.getElementById("loading-overlay").classList.add("hidden");
+        }, 300);
+      }
+    }
+
+    // Save board state dynamically (with Debounce)
+    let saveTimeout = null;
+    function triggerSave() {
+      setSaveState('saving');
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(async () => {
+        try {
+          const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Master-Key': apiKey
+            },
+            body: JSON.stringify(board)
+          });
+          if (res.ok) {
+            setSaveState('saved');
+            computeOverlaps();
+          } else {
+            setSaveState('error');
+          }
+        } catch (err) {
+          console.error("Erreur de sauvegarde:", err);
+          setSaveState('error');
+        }
+      }, 1000);
+    }
+
+    function setSaveState(state) {
+      const iconContainer = document.getElementById("save-indicator-icon");
+      const textContainer = document.getElementById("save-indicator-text");
+      
+      if (state === 'saving') {
+        iconContainer.innerHTML = `<div class="animate-spin rounded-full h-3 w-3 border-2 border-indigo-400 border-t-transparent"></div>`;
+        textContainer.textContent = "Sauvegarde...";
+        textContainer.className = "text-slate-400";
+      } else if (state === 'saved') {
+        iconContainer.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>`;
+        textContainer.textContent = "Enregistré";
+        textContainer.className = "text-slate-500";
+        lucide.createIcons();
+      } else if (state === 'error') {
+        iconContainer.innerHTML = `<i data-lucide="alert-circle" class="w-3.5 h-3.5 text-rose-400"></i>`;
+        textContainer.textContent = "Erreur de synchro";
+        textContainer.className = "text-rose-400";
+        lucide.createIcons();
+      }
+    }
+
+    // Bind header title and description events
+    document.getElementById("board-title").addEventListener("input", (e) => {
+      if (board) {
+        board.name = e.target.value;
+        triggerSave();
+      }
+    });
+
+    document.getElementById("board-description").addEventListener("input", (e) => {
+      if (board) {
+        board.description = e.target.value;
+        triggerSave();
+      }
+    });
+
+    // Render Rows in Table
+    function renderGrid() {
+      const rowsTbody = document.getElementById("grid-rows");
+      const emptyState = document.getElementById("empty-state");
+      rowsTbody.innerHTML = "";
+
+      if (!board || !board.rows || board.rows.length === 0) {
+        emptyState.classList.remove("hidden");
+        return;
+      }
+      emptyState.classList.add("hidden");
+
+      board.rows.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-white/[0.02] border-b border-white/5 transition-all text-sm";
+        tr.id = `row-tr-${row.id}`;
+
+        // cells contents
+        const pName = row.cells.participant || "";
+        const statusSelected = row.cells.status || "opt-2";
+        const scheduleVal = row.cells.schedule || {};
+        const commentary = row.cells.commentaire || "";
+
+        // Status options rendering
+        const statusColumn = board.columns.find(c => c.id === "status");
+        let statusOptionsHtml = "";
+        if (statusColumn && statusColumn.options) {
+          statusColumn.options.forEach(opt => {
+            const isSel = opt.id === statusSelected;
+            statusOptionsHtml += `
+              <option value="${opt.id}" ${isSel ? 'selected' : ''}>
+                ${opt.text}
+              </option>
+            `;
+          });
+        }
+
+        // Generate schedule summary indicator inside cell
+        let scheduleBadgeHtml = `<div class="flex flex-col gap-1 w-full max-w-[280px] mx-auto text-left">`;
+        DAYS_CONFIG.forEach(d => {
+          const dayHours = scheduleVal[d.id] || {};
+          const activeHoursForDay = DEFAULT_HOURS.filter(h => {
+            const raw = dayHours[h];
+            if (!raw) return false;
+            const { main, rdv } = parseCompoundStatus(raw);
+            return main !== "" || rdv !== "";
+          });
+
+          if (activeHoursForDay.length > 0) {
+            scheduleBadgeHtml += `
+              <div class="flex items-start gap-1.5 py-0.5 border-b border-white/5 last:border-0">
+                <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest shrink-0 w-12">${d.label.split(' ')[0]}</span>
+                <div class="flex flex-wrap gap-1">
+            `;
+            activeHoursForDay.forEach(h => {
+              const raw = dayHours[h];
+              const { main, rdv } = parseCompoundStatus(raw);
+              
+              let subLabel = "";
+              let bgStyle = "bg-white/5 text-slate-300 border-white/5";
+              if (main === 'maybe') { bgStyle = "bg-amber-500/10 border-amber-500/20 text-amber-400"; subLabel = "dispo"; }
+              else if (main === 'yes' || main === 'Confirmed') { bgStyle = "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"; subLabel = "déjà prévu"; }
+              
+              if (rdv === 'rdv_chatelet') { bgStyle = "bg-sky-500/10 border-sky-500/20 text-sky-400"; subLabel = "rdv Châtelet"; }
+              else if (rdv === 'rdv_parc_expo') { bgStyle = "bg-pink-500/10 border-pink-500/20 text-pink-400"; subLabel = "rdv Parc Expo"; }
+
+              scheduleBadgeHtml += `
+                <div class="text-[9px] font-bold px-1.5 py-0.5 rounded border ${bgStyle} flex flex-col items-center">
+                  <span>${h}</span>
+                </div>
+              `;
+            });
+            scheduleBadgeHtml += `</div></div>`;
+          }
+        });
+        scheduleBadgeHtml += `</div>`;
+
+        tr.innerHTML = `
+          <!-- Name cell -->
+          <td class="py-3 px-5">
+            <input 
+              type="text" 
+              value="${pName}" 
+              oninput="updateCellText('${row.id}', 'participant', this.value)" 
+              class="w-full bg-transparent border-b border-transparent hover:border-white/10 focus:border-indigo-500 focus:outline-none transition-all py-1 font-semibold text-slate-100 text-xs" 
+              placeholder="Ex: William"
+            />
+          </td>
+
+          <!-- Status cell -->
+          <td class="py-3 px-5">
+            <select 
+              onchange="updateCellText('${row.id}', 'status', this.value)" 
+              class="bg-slate-950 border border-white/10 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            >
+              ${statusOptionsHtml}
+            </select>
+          </td>
+
+          <!-- Schedule cell (Click opens popover editor) -->
+          <td class="py-3 px-5 text-center">
+            <button 
+              onclick="openEditor('${row.id}')" 
+              class="w-full flex flex-col items-center justify-center p-2 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 rounded-xl transition-all cursor-pointer min-h-[44px]"
+            >
+              ${scheduleBadgeHtml}
+              <span class="text-[9px] font-bold text-indigo-400 mt-1 flex items-center gap-0.5 opacity-60 hover:opacity-100">
+                <i data-lucide="calendar" class="w-2.5 h-2.5"></i> Configurer heures
+              </span>
+            </button>
+          </td>
+
+          <!-- Commentary cell -->
+          <td class="py-3 px-5">
+            <textarea 
+              oninput="updateCellText('${row.id}', 'commentaire', this.value)" 
+              class="w-full bg-transparent border-b border-transparent hover:border-white/10 focus:border-indigo-500 focus:outline-none transition-all py-1 text-slate-400 text-xs resize-none h-12 scrollbar-none" 
+              placeholder="Ajouter des notes..."
+            >${commentary}</textarea>
+          </td>
+
+          <!-- Action buttons cell -->
+          <td class="py-3 px-5 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              <button 
+                onclick="duplicateRow('${row.id}')" 
+                class="p-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-lg border border-white/5 transition-all cursor-pointer" 
+                title="Dupliquer"
+              >
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              </button>
+              <button 
+                onclick="deleteRow('${row.id}')" 
+                class="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 rounded-lg border border-rose-500/10 transition-all cursor-pointer" 
+                title="Supprimer"
+              >
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </td>
+        `;
+
+        rowsTbody.appendChild(tr);
+      });
+
+      // Re-trigger icon rendering
+      lucide.createIcons();
+    }
+
+    // Update cell value
+    function updateCellText(rowId, colId, value) {
+      if (!board) return;
+      const row = board.rows.find(r => r.id === rowId);
+      if (row) {
+        row.cells[colId] = value;
+        triggerSave();
+      }
+    }
+
+    // Append new row ("S'ajouter")
+    function appendRow() {
+      if (!board) return;
+      const newRowId = `row-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+      
+      const initialCells = {
+        participant: "",
+        status: "opt-2",
+        schedule: {},
+        commentaire: ""
+      };
+
+      const newRow = {
+        id: newRowId,
+        dayId: "vendredi",
+        cells: initialCells
+      };
+
+      board.rows.push(newRow);
+      renderGrid();
+      triggerSave();
+      
+      // Focus on the newly created name input
+      setTimeout(() => {
+        const rowEl = document.getElementById(`row-tr-${newRowId}`);
+        if (rowEl) {
+          const input = rowEl.querySelector('input[type="text"]');
+          if (input) input.focus();
+        }
+      }, 100);
+    }
+
+    // Duplicate a row
+    function duplicateRow(rowId) {
+      if (!board) return;
+      const sourceRow = board.rows.find(r => r.id === rowId);
+      if (!sourceRow) return;
+
+      const newRowId = `row-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+      
+      // Deep copy cells
+      const duplicatedCells = {};
+      Object.keys(sourceRow.cells).forEach(key => {
+        const val = sourceRow.cells[key];
+        if (key === "schedule") {
+          duplicatedCells[key] = JSON.parse(JSON.stringify(val || {}));
+        } else {
+          duplicatedCells[key] = val;
+        }
+      });
+
+      const newRow = {
+        id: newRowId,
+        dayId: sourceRow.dayId || "vendredi",
+        cells: duplicatedCells
+      };
+
+      // Append row right after duplicate source
+      const idx = board.rows.findIndex(r => r.id === rowId);
+      board.rows.splice(idx + 1, 0, newRow);
+
+      renderGrid();
+      triggerSave();
+    }
+
+    // Delete row
+    function deleteRow(rowId) {
+      if (!board) return;
+      if (!confirm("Voulez-vous vraiment supprimer cette ligne de disponibilité ?")) return;
+
+      board.rows = board.rows.filter(r => r.id !== rowId);
+      renderGrid();
+      triggerSave();
+    }
+
+    // CELL EDITOR MODAL CONTROLS
+    function openEditor(rowId) {
+      activeRowId = rowId;
+      const row = board.rows.find(r => r.id === rowId);
+      if (!row) return;
+
+      const pName = row.cells.participant || "Participant anonyme";
+      document.getElementById("editor-user-title").textContent = `Disponibilités - ${pName}`;
+      
+      document.getElementById("editor-modal").classList.remove("hidden");
+      setActiveDay(activeDay);
+    }
+
+    function closeEditor() {
+      document.getElementById("editor-modal").classList.add("hidden");
+      renderGrid();
+    }
+
+    function setActiveDay(dayId) {
+      activeDay = dayId;
+      
+      // Update Tab Styles
+      ['vendredi', 'samedi', 'dimanche'].forEach(d => {
+        const tab = document.getElementById(`tab-${d}`);
+        if (d === dayId) {
+          tab.className = "text-xs font-bold py-2 rounded-lg transition-all cursor-pointer text-center bg-white/5 text-white shadow-sm border border-white/5";
+        } else {
+          tab.className = "text-xs font-semibold py-2 rounded-lg transition-all cursor-pointer text-center text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]";
+        }
+      });
+
+      // Toggle copy previous button
+      const copyPrevContainer = document.getElementById("copy-previous-container");
+      const copyPrevText = document.getElementById("copy-previous-text");
+      if (dayId === 'samedi') {
+        copyPrevContainer.classList.remove("hidden");
+        copyPrevText.textContent = "📋 Copier le jour précédent (Vendredi)";
+      } else if (dayId === 'dimanche') {
+        copyPrevContainer.classList.remove("hidden");
+        copyPrevText.textContent = "📋 Copier le jour précédent (Samedi)";
+      } else {
+        copyPrevContainer.classList.add("hidden");
+      }
+
+      renderHoursList();
+    }
+
+    // Copy previous day schedule values
+    function copyPreviousDay() {
+      let prevDayId = null;
+      if (activeDay === 'samedi') prevDayId = 'vendredi';
+      else if (activeDay === 'dimanche') prevDayId = 'samedi';
+
+      if (!prevDayId || !activeRowId) return;
+
+      const row = board.rows.find(r => r.id === activeRowId);
+      if (row) {
+        if (!row.cells.schedule) row.cells.schedule = {};
+        row.cells.schedule[activeDay] = JSON.parse(JSON.stringify(row.cells.schedule[prevDayId] || {}));
+        triggerSave();
+        renderHoursList();
+      }
+    }
+
+    // Toggle specific sub-status inside hour
+    function setHourStatusPart(dayId, hour, type, valueToToggle) {
+      if (!board || !activeRowId) return;
+      const row = board.rows.find(r => r.id === activeRowId);
+      if (!row) return;
+
+      if (!row.cells.schedule) row.cells.schedule = {};
+      if (!row.cells.schedule[dayId]) row.cells.schedule[dayId] = {};
+
+      const rawStatus = row.cells.schedule[dayId][hour] || "";
+      let { main: currentMain, rdv: currentRdv } = parseCompoundStatus(rawStatus);
+
+      if (type === 'main') {
+        currentMain = (currentMain === valueToToggle) ? "" : valueToToggle;
+      } else if (type === 'rdv') {
+        currentRdv = (currentRdv === valueToToggle) ? "" : valueToToggle;
+      }
+
+      const combined = `${currentMain}|${currentRdv}`;
+      if (combined === "|") {
+        delete row.cells.schedule[dayId][hour];
+      } else {
+        row.cells.schedule[dayId][hour] = combined;
+      }
+
+      triggerSave();
+      renderHoursList();
+    }
+
+    // Render active day hours checklist inside editor
+    function renderHoursList() {
+      const hoursListContainer = document.getElementById("editor-hours-list");
+      hoursListContainer.innerHTML = "";
+
+      const row = board.rows.find(r => r.id === activeRowId);
+      if (!row) return;
+
+      const sched = row.cells.schedule || {};
+      const dayHours = sched[activeDay] || {};
+
+      DEFAULT_HOURS.forEach(hour => {
+        const rawStatus = dayHours[hour] || "";
+        const { main, rdv } = parseCompoundStatus(rawStatus);
+
+        const div = document.createElement("div");
+        div.className = "flex flex-col gap-1.5 py-2 border-b border-white/5 last:border-0";
+
+        // Badges container
+        let badgesHtml = "";
+        if (main === 'maybe') {
+          badgesHtml += `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">dispo</span>`;
+        } else if (main === 'yes') {
+          badgesHtml += `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">déjà prévu</span>`;
+        }
+
+        if (rdv === 'rdv_chatelet') {
+          badgesHtml += `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/10 border border-sky-500/20 text-sky-400">rdv Châtelet</span>`;
+        } else if (rdv === 'rdv_parc_expo') {
+          badgesHtml += `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-pink-500/10 border border-pink-500/20 text-pink-400">rdv Parc Expo</span>`;
+        }
+
+        div.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-xs font-bold text-slate-300">${hour}</span>
+            <div class="flex items-center gap-1">
+              ${badgesHtml}
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-4 gap-1 bg-black/40 p-1 rounded-lg border border-white/5">
+            <!-- DISPO (maybe) -->
+            <button 
+              onclick="setHourStatusPart('${activeDay}', '${hour}', 'main', 'maybe')"
+              class="text-[9px] font-bold py-1 rounded transition-all cursor-pointer text-center ${
+                main === "maybe"
+                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                  : "text-slate-500 hover:text-slate-400 hover:bg-white/5"
+              }"
+            >
+              Dispo
+            </button>
+
+            <!-- PREVU (yes) -->
+            <button 
+              onclick="setHourStatusPart('${activeDay}', '${hour}', 'main', 'yes')"
+              class="text-[9px] font-bold py-1 rounded transition-all cursor-pointer text-center ${
+                main === "yes"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  : "text-slate-500 hover:text-slate-400 hover:bg-white/5"
+              }"
+            >
+              Prévu
+            </button>
+
+            <!-- CHATELET -->
+            <button 
+              onclick="setHourStatusPart('${activeDay}', '${hour}', 'rdv', 'rdv_chatelet')"
+              class="text-[9px] font-bold py-1 rounded transition-all cursor-pointer text-center ${
+                rdv === "rdv_chatelet"
+                  ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                  : "text-slate-500 hover:text-slate-400 hover:bg-white/5"
+              }"
+            >
+              Châtelet
+            </button>
+
+            <!-- PARC EXPO -->
+            <button 
+              onclick="setHourStatusPart('${activeDay}', '${hour}', 'rdv', 'rdv_parc_expo')"
+              class="text-[9px] font-bold py-1 rounded transition-all cursor-pointer text-center ${
+                rdv === "rdv_parc_expo"
+                  ? "bg-pink-500/20 text-pink-300 border border-pink-500/30"
+                  : "text-slate-500 hover:text-slate-400 hover:bg-white/5"
+              }"
+            >
+              Parc Expo
+            </button>
+          </div>
+        `;
+
+        hoursListContainer.appendChild(div);
+      });
+    }
+
+    // Overlap computing logic
+    function computeOverlaps() {
+      const container = document.getElementById("confirmed-overlaps");
+      container.innerHTML = "";
+
+      if (!board || !board.rows || board.rows.length <= 1) {
+        container.innerHTML = `<p class="text-xs text-slate-500 italic">Ajoutez d'autres participants pour analyser les chevauchements.</p>`;
+        return;
+      }
+
+      // We group overlap hours by day
+      const overlapByDay = {};
+
+      // Get first participant as reference
+      const firstRow = board.rows[0];
+      const restOfRows = board.rows.slice(1);
+
+      DAYS_CONFIG.forEach(day => {
+        const myDayHours = (firstRow.cells.schedule || {})[day.id] || {};
+
+        DEFAULT_HOURS.forEach(hour => {
+          const myRaw = myDayHours[hour];
+          if (!myRaw) return;
+
+          const myParsed = parseCompoundStatus(myRaw);
+          const hasMyContent = myParsed.main !== "" || myParsed.rdv !== "";
+
+          if (hasMyContent) {
+            // Check if ALL other participants have this slot filled with any status too
+            let allMatch = true;
+            const otherLabels = [];
+
+            for (let otherRow of restOfRows) {
+              const otherDayHours = (otherRow.cells.schedule || {})[day.id] || {};
+              const otherRaw = otherDayHours[hour];
+              if (!otherRaw) {
+                allMatch = false;
+                break;
+              }
+              const otherParsed = parseCompoundStatus(otherRaw);
+              const hasOtherContent = otherParsed.main !== "" || otherParsed.rdv !== "";
+              if (!hasOtherContent) {
+                allMatch = false;
+                break;
+              }
+              otherLabels.push({ name: otherRow.cells.participant || "Anonyme", parsed: otherParsed });
+            }
+
+            if (allMatch) {
+              if (!overlapByDay[day.label]) {
+                overlapByDay[day.label] = [];
+              }
+
+              // Format text descriptions
+              const formatStatObj = (parsed) => {
+                const parts = [];
+                if (parsed.main === 'maybe') parts.push('dispo');
+                else if (parsed.main === 'yes') parts.push('déjà prévu');
+                
+                if (parsed.rdv === 'rdv_chatelet') parts.push('rdv Châtelet');
+                else if (parsed.rdv === 'rdv_parc_expo') parts.push('rdv Parc Expo');
+                return parts.join(' + ') || '-';
+              };
+
+              const firstRowName = firstRow.cells.participant || "Organisateur";
+              let matchDescription = `${hour} : ${firstRowName} (${formatStatObj(myParsed)})`;
+              otherLabels.forEach(l => {
+                matchDescription += ` / ${l.name} (${formatStatObj(l.parsed)})`;
+              });
+
+              overlapByDay[day.label].push(matchDescription);
+            }
+          }
+        });
+      });
+
+      const dayKeys = Object.keys(overlapByDay);
+      if (dayKeys.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-500 italic">Aucun créneau commun n'a été trouvé.</p>`;
+        return;
+      }
+
+      dayKeys.forEach(dayLabel => {
+        const dayDiv = document.createElement("div");
+        dayDiv.className = "space-y-1.5 p-3 bg-black/40 border border-white/5 rounded-xl";
+        
+        let listHtml = "";
+        overlapByDay[dayLabel].forEach(text => {
+          listHtml += `
+            <div class="flex items-start gap-2 text-[11px] text-slate-300 font-mono">
+              <span class="text-emerald-400">✓</span>
+              <span>${text}</span>
+            </div>
+          `;
+        });
+
+        dayDiv.innerHTML = `
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-white/5 pb-1 mb-1.5">
+            ${dayLabel}
+          </div>
+          <div class="space-y-1">
+            ${listHtml}
+          </div>
+        `;
+        container.appendChild(dayDiv);
+      });
+    }
+
+    // Run initialization on load
+    init();
+  </script>
+</body>
+</html>

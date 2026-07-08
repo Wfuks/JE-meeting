@@ -1,0 +1,117 @@
+{
+  "id": "meetup-f2ikutcn1",
+  "name": "Meetup Organizer",
+  "isShared": false,
+  "columns": [
+    {
+      "id": "participant",
+      "name": "Participant Name",
+      "type": "text"
+    },
+    {
+      "id": "status",
+      "name": "Attendance Status",
+      "type": "select",
+      "options": [
+        {
+          "id": "opt-1",
+          "text": "Confirmed 🎉",
+          "bgColor": "#065f46",
+          "textColor": "#ecfdf5"
+        },
+        {
+          "id": "opt-2",
+          "text": "Interessé disponible 🤔",
+          "bgColor": "#854d0e",
+          "textColor": "#fef9c3"
+        },
+        {
+          "id": "opt-3",
+          "text": "Unavailable ❌",
+          "bgColor": "#991b1b",
+          "textColor": "#fef2f2"
+        }
+      ]
+    },
+    {
+      "id": "schedule",
+      "name": "Rdv Châtelet",
+      "type": "schedule"
+    },
+    {
+      "id": "commentaire",
+      "name": "Commentaire",
+      "type": "text"
+    }
+  ],
+  "rows": [
+    {
+      "id": "v-row-1",
+      "dayId": "vendredi",
+      "cells": {
+        "participant": "Organizer",
+        "status": "opt-1",
+        "schedule": {
+          "vendredi": {
+            "08h00": "Confirmed",
+            "09h00": "Confirmed",
+            "10h00": "yes",
+            "11h00": "yes",
+            "12h00": "maybe",
+            "13h00": "maybe",
+            "14h00": ""
+          }
+        },
+        "commentaire": "This is a comment with free wrapping text."
+      }
+    },
+    {
+      "id": "v-row-rdv",
+      "dayId": "vendredi",
+      "cells": {
+        "participant": "rdv devant parc expo",
+        "status": "opt-1",
+        "schedule": {
+          "vendredi": {
+            "08h00": "Confirmed",
+            "09h00": "Confirmed",
+            "10h00": "yes",
+            "11h00": "yes",
+            "12h00": "maybe",
+            "13h00": "maybe",
+            "14h00": ""
+          }
+        },
+        "commentaire": "Rencontre principale devant l'entrée du salon."
+      }
+    },
+    {
+      "id": "s-row-1",
+      "dayId": "samedi",
+      "cells": {
+        "participant": "Alice Martin",
+        "status": "opt-2",
+        "schedule": {
+          "08h00": "",
+          "09h00": "maybe",
+          "10h00": "yes",
+          "11h00": "yes",
+          "12h00": "Confirmed",
+          "13h00": "Confirmed",
+          "14h00": "maybe"
+        },
+        "commentaire": ""
+      }
+    },
+    {
+      "id": "d-row-1",
+      "dayId": "dimanche",
+      "cells": {
+        "participant": "Bob Dubois",
+        "status": "opt-3",
+        "schedule": {},
+        "commentaire": ""
+      }
+    }
+  ]
+}

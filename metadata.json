@@ -1,0 +1,6 @@
+{
+  "name": "Meetup Organizer",
+  "description": "A collaborative meetup planner with dynamic custom columns, word-wrapping free text cells, schedule-hour status selectors, and shareable read-only column configurations with fully editable rows.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
